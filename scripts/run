@@ -6,16 +6,11 @@ FAIL="\e[1;31mFAIL\e[0m"
 
 SCRIPTHOME="$(dirname $(realpath ${0}))"
 BUSYBOX="$(which busybox)"
-echo script at $SCRIPTHOME
-
 
 DIR=$(mktemp -d)
-ROOT="${DIR}/root"
-mkdir "${ROOT}"
-mkdir "${ROOT}/tests"
+mkdir "${DIR}/tests"
 
-GO_TEST_BINARY="${ROOT}/tests/1"
-LOGFILE="${DIR}/log"
+GO_TEST_BINARY="${DIR}/tests/1"
 
 # Build Go test binary.
 go test \
@@ -24,80 +19,11 @@ go test \
    -tags 'osusergo netgo static_build linux' \
    -c -o "${GO_TEST_BINARY}"
 
-cd "${ROOT}"
-
-# Build root
-mkdir -p proc sys tmp
-mkdir -p etc/init.d
-
-cat >etc/init.d/rcS <<'EOF'
-#!/bin/busybox sh
-
-# First set up busybox symlinks
-for fn in $(busybox --list); do
-  busybox ln -s /bin/busybox /bin/${fn} 2>/dev/null
-done
-
-# Mount file systems and set up networking
-mount -a
-ifconfig lo up
-
-cat /etc/banner
-date
-echo
-/tests/1 -test.v
-poweroff -f
-EOF
-
-cat >etc/fstab <<'EOF'
-# fs mntpt type opts dump pass
-proc /proc proc defaults 0 0
-sys /sys sysfs defaults 0 0
-EOF
-
-figlet "Test Run:" >etc/banner
-
-cat >etc/hosts <<'EOF'
-::1 localhost ip6-localhost ip6-loopback
-127.0.0.1 localhost
-EOF
-
-function file_list() {
-    cat <<EOF
-dir /bin 0755 0 0
-dir /etc 0755 0 0
-dir /tests 0755 0 0
-
-file /tests/1 ${GO_TEST_BINARY} 0755 0 0
-
-# Busybox
-file /bin/busybox ${BUSYBOX} 0755 0 0
-slink /init /bin/busybox 0700 0 0
-
-# some devices
-dir /dev 0755 0 0
-nod /dev/console 0600 0 0 c 5 1
-nod /dev/null 0666 0 0 c 1 3
-nod /dev/tty 0666 0 0 c 5 0
-nod /dev/tty0 0666 0 0 c 4 0
-nod /dev/ttyS0 0660 0 0 c 4 64
-EOF
-
-    echo
-    echo "# Other files"
-    for f in $(find *); do
-        if [ -d "${f}" ]; then
-            echo "dir /${f} 0755 0 0" 
-        elif [ -f "${f}" ]; then
-            echo "file /${f} ${f} 0755 0 0"
-        fi
-    done
-}
-
-file_list | $HOME/linux/usr/gen_init_cpio -c /dev/stdin > ../initramfs 
-cd ..
-
 INITRAMFS=initramfs
+
+cd "${DIR}"
+cp "${SCRIPTHOME}/../initramfs-base.cpio" "${INITRAMFS}"
+echo tests/1 | cpio -H newc -o -A -F "${INITRAMFS}"
 
 EXITCODE=0
 KERNEL_DIR="$HOME/git/landlocktest/images/kernel"

@@ -1,0 +1,21 @@
+#!/bin/busybox sh
+
+# First set up busybox symlinks
+for fn in $(busybox --list); do
+  busybox ln -s /bin/busybox /bin/${fn} 2>/dev/null
+done
+
+# Mount file systems and set up networking
+mount -a
+ifconfig lo up
+
+cat /etc/banner
+date
+echo
+
+for t in /tests/*; do
+	$t -test.v
+done
+
+# Power down the system
+poweroff -f

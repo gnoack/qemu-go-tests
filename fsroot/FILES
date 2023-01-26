@@ -1,0 +1,13 @@
+bin
+bin/busybox
+init
+tests
+etc
+etc/banner
+etc/hosts
+etc/fstab
+etc/init.d
+etc/init.d/rcS
+proc
+sys
+tmp
