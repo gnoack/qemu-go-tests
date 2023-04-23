@@ -13,8 +13,14 @@ cat /etc/banner
 date
 echo
 
+# Go tests
 for t in /tests/*; do
 	$t -test.v
+done
+
+# Regular tests (without special flag)
+for t in /ctests/*; do
+	$t
 done
 
 # Power down the system
