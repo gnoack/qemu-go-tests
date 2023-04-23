@@ -1,0 +1,47 @@
+#!/bin/sh
+set -e
+
+PASS="\e[1;32mPASS\e[0m"
+FAIL="\e[1;31mFAIL\e[0m"
+
+SCRIPTHOME="$(dirname $(realpath ${0}))"
+BUSYBOX="$(which busybox)"
+
+# Build self tests
+KERNEL_DIR="${HOME}/linux"
+KBUILD_OUTPUT="${KBUILD_OUTPUT=${KERNEL_DIR}}"
+
+cd "${KERNEL_DIR}"
+make LDFLAGS=-static TARGETS=landlock -j8 -C tools/testing/selftests
+
+echo "Kbuild output dir: ${KBUILD_OUTPUT}"
+
+DIR=$(mktemp -d)
+mkdir "${DIR}/ctests"
+
+for t in fs_test base_test ptrace_test true; do
+    cp "${KBUILD_OUTPUT}/kselftest/landlock/${t}" "${DIR}/ctests/"
+done
+
+INITRAMFS=initramfs
+
+cd "${DIR}"
+cp "${SCRIPTHOME}/../initramfs-base.cpio" "${INITRAMFS}"
+find ctests | cpio -H newc -o -A -F "${INITRAMFS}"
+
+LOGFILE=/tmp/kselftests$$
+
+qemu-system-x86_64 \
+    -nographic \
+    -m 4G \
+    -append "console=ttyS0 lsm=landlock" \
+    -kernel "${KBUILD_OUTPUT}/arch/x86/boot/bzImage" \
+    -initrd "${INITRAMFS}" \
+    | tee "${LOGFILE}.raw"
+
+grep -v '^\[' "${LOGFILE}.raw" > "${LOGFILE}"
+
+echo "# LOGS:"
+echo "# ${LOGFILE}.raw"
+echo "# ${LOGFILE}"
+exit 0
