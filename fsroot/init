@@ -1,1 +1,5 @@
-bin/busybox
+#!/bin/busybox sh
+busybox mkdir /newroot
+busybox mount -t tmpfs /newroot /newroot
+busybox cp -r / /newroot
+exec busybox switch_root /newroot /sbin/init
