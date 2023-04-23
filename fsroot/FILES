@@ -4,6 +4,7 @@ init
 tests
 etc
 etc/banner
+etc/successbanner
 etc/hosts
 etc/fstab
 etc/init.d
