@@ -9,7 +9,7 @@ done
 
 # Mount file systems and set up networking
 mount -a
-mknod /dev/full c 1 7
+mdev -s  # populate /dev
 ifconfig lo up
 
 cat /etc/banner
