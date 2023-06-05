@@ -2,9 +2,22 @@
 set -e
 
 # Configuration
-KERNEL_DIR="$HOME/git/landlocktest/images/kernel"
-VERSIONS="5.19 5.19.8 6.0 6.2-rc3 6.2.0-rc3-llnet+"
-
+if [ -z "${KERNEL_IMG_DIR}" ] || [ -z "${KERNEL_VERSIONS}" ]; then
+    echo -e "\e[1;31mERROR\e[0m"
+    echo
+    echo "You need to set the following two environment variables:"
+    echo
+    echo "  KERNEL_IMG_DIR  - directory that contains bzImage.VERSION files"
+    echo "  KERNEL_VERSIONS - space-delimited kernel versions to run"
+    echo
+    echo "For example:"
+    echo
+    echo "export KERNEL_IMG_DIR=$HOME/prebuilt-kernels"
+    echo 'export KERNEL_VERSIONS="5.15 5.19 6.2 6.3-foobar"'
+    echo
+    echo "where the files bzImage.5.15 etc exist in the directory."
+    exit
+fi
 
 PASS="\e[1;32mPASS\e[0m"
 FAIL="\e[1;31mFAIL\e[0m"
@@ -33,8 +46,8 @@ echo tests/1 | cpio -H newc -o -A -F "${INITRAMFS}"
 
 EXITCODE=0
 
-for KERNEL_VERSION in $VERSIONS; do
-  KERNEL_IMG="${KERNEL_DIR}/bzImage.${KERNEL_VERSION}"
+for KERNEL_VERSION in ${KERNEL_VERSIONS}; do
+  KERNEL_IMG="${KERNEL_IMG_DIR}/bzImage.${KERNEL_VERSION}"
   LOGFILE="/tmp/go-test-${KERNEL_VERSION}.log"
   printf "Linux %-18s " "${KERNEL_VERSION}"
 
