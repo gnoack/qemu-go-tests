@@ -32,7 +32,7 @@ mkdir "${DIR}/llbin"
 
 make clean
 LDFLAGS=-static make
-cp tr "${DIR}/llbin"
+cp tr convert tcpserver "${DIR}/llbin"
 cp test.sh "${DIR}/lltests"
 cat > "${DIR}/runtests" <<EOF
 #!/bin/sh
