@@ -1,0 +1,99 @@
+#!/bin/sh
+set -e
+
+# Configuration
+if [ -z "${KERNEL_IMG_DIR}" ] || [ -z "${KERNEL_VERSIONS}" ]; then
+    echo -e "\e[1;31mERROR\e[0m"
+    echo
+    echo "You need to set the following two environment variables:"
+    echo
+    echo "  KERNEL_IMG_DIR  - directory that contains bzImage.VERSION files"
+    echo "  KERNEL_VERSIONS - space-delimited kernel versions to run"
+    echo
+    echo "For example:"
+    echo
+    echo "export KERNEL_IMG_DIR=$HOME/prebuilt-kernels"
+    echo 'export KERNEL_VERSIONS="5.15 5.19 6.2 6.3-foobar"'
+    echo
+    echo "where the files bzImage.5.15 etc exist in the directory."
+    exit
+fi
+
+PASS="\e[1;32mPASS\e[0m"
+FAIL="\e[1;31mFAIL\e[0m"
+SKIP_MISSING="\e[1;33mSKIP\e[0m (missing)"
+
+SCRIPTHOME="$(dirname $(realpath ${0}))"
+BUSYBOX="$(which busybox)"
+
+DIR=$(mktemp -d)
+mkdir "${DIR}/lltests"
+mkdir "${DIR}/llbin"
+
+make clean
+LDFLAGS=-static make
+cp tr "${DIR}/llbin"
+cp test.sh "${DIR}/lltests"
+cat > "${DIR}/runtests" <<EOF
+#!/bin/sh
+echo "✳️ Running Landlock example tests"
+LLBIN="/llbin" /lltests/test.sh
+echo "✅ PASS"
+EOF
+chmod +x "${DIR}/runtests"
+
+INITRAMFS=initramfs
+
+cd "${DIR}"
+cp "${SCRIPTHOME}/../initramfs-base.cpio" "${INITRAMFS}"
+find llbin lltests runtests | cpio -H newc -o -A -F "${INITRAMFS}"
+
+EXITCODE=0
+
+for KERNEL_VERSION in ${KERNEL_VERSIONS}; do
+  KERNEL_IMG="${KERNEL_IMG_DIR}/bzImage.${KERNEL_VERSION}"
+  LOGFILE="/tmp/llex-test-${KERNEL_VERSION}.log"
+  printf "Linux %-18s " "${KERNEL_VERSION}"
+
+  if [ ! -e "${KERNEL_IMG}" ]; then
+      printf " %-34s  ${SKIP_MISSING}\n" ""
+      continue
+  fi
+
+  # A hack so that the log file can be just pasted to the command line and run.
+  echo "#!/bin/sh" > "${LOGFILE}"
+  echo "exec less \$0 || exit 1" >> "${LOGFILE}"
+  echo >> "${LOGFILE}"
+  chmod +x "${LOGFILE}"
+
+  # Run Qemu and filter out the test output.
+  qemu-system-x86_64 \
+                     -nographic \
+                     -m 4G \
+                     -append "console=ttyS0 lsm=landlock" \
+                     -kernel "${KERNEL_IMG}" \
+                     -initrd "${INITRAMFS}" \
+                     > "${LOGFILE}.raw"
+
+  echo "Kernel ${KERNEL_VERSION}" >> "${LOGFILE}"
+  cat "${LOGFILE}.raw" \
+      | grep -v '^\[' \
+            >> "${LOGFILE}"
+
+  if (grep FAIL "${LOGFILE}" >/dev/null); then
+      printf " %-34s  ${FAIL}\n" "${LOGFILE}"
+      EXITCODE=1
+  else
+      printf " %-34s  ${PASS}\n" "${LOGFILE}"
+  fi
+done
+
+rm -rf "${DIR}"
+
+if [ "${EXITCODE}" -eq 1 ]; then
+    echo -e "${FAIL}"
+else
+    echo -e "${PASS}"
+fi
+
+exit "${EXITCODE}"
