@@ -25,10 +25,18 @@ for t in $(ls -1 /tests/); do
 done
 
 # Regular tests (without special flag)
-cd $(mktemp -d testrun.XXXXXX)
-cp /ctests/true .
-for t in $(ls -1 /ctests/); do
-	/ctests/$t
-done
+if [ -e /ctests ]; then
+	cd $(mktemp -d testrun.XXXXXX)
+	if [ -e /ctests/true ]; then
+		cp /ctests/true .
+	fi
+	for t in $(ls -1 /ctests/); do
+		/ctests/$t
+	done
+fi
+
+if [ -e /runtests ]; then
+	/runtests
+fi
 
 cat /etc/successbanner
