@@ -81,7 +81,7 @@ for KERNEL_VERSION in ${KERNEL_VERSIONS}; do
             >> "${LOGFILE}"
 
   if (grep FAIL "${LOGFILE}" >/dev/null); then
-      printf " %-34s  ${FAIL}\n" "${LOGFILE}"
+      printf " %-34s  ${FAIL}  'KERNEL_VERSIONS=%s %s'\n" "${LOGFILE}" "${KERNEL_VERSION}" "$0"
       EXITCODE=1
   else
       printf " %-34s  ${PASS}\n" "${LOGFILE}"
