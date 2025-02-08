@@ -30,8 +30,14 @@ if [ -e /ctests ]; then
 	if [ -e /ctests/true ]; then
 		cp /ctests/true .
 	fi
-	for t in $(ls -1 /ctests/); do
-		/ctests/$t
+	if [ -e /ctests/sandbox-and-launch ]; then
+		cp /ctests/sandbox-and-launch .
+	fi
+	if [ -e /ctests/wait-pipe ]; then
+		cp /ctests/wait-pipe .
+	fi
+	for t in $(ls -1 /ctests/*_test); do
+		"$t"
 	done
 fi
 

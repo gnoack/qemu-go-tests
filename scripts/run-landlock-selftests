@@ -8,7 +8,11 @@ SCRIPTHOME="$(dirname $(realpath ${0}))"
 BUSYBOX="$(which busybox)"
 
 # Build self tests
-KERNEL_DIR="${HOME}/linux"
+if [[ -e "Kbuild" ]]; then
+    KERNEL_DIR="$(pwd)"
+else
+    KERNEL_DIR="${HOME}/linux"
+fi
 KBUILD_OUTPUT="${KBUILD_OUTPUT=${KERNEL_DIR}}"
 
 cd "${KERNEL_DIR}"
@@ -19,8 +23,10 @@ echo "Kbuild output dir: ${KBUILD_OUTPUT}"
 DIR=$(mktemp -d)
 mkdir "${DIR}/ctests"
 
-for t in fs_test base_test ptrace_test true; do
-    cp "${KBUILD_OUTPUT}/kselftest/landlock/${t}" "${DIR}/ctests/"
+for t in fs_test base_test net_test ptrace_test socket_test sandbox-and-launch wait-pipe true; do
+    if [[ -e "${KBUILD_OUTPUT}/kselftest/landlock/${t}" ]]; then
+        cp "${KBUILD_OUTPUT}/kselftest/landlock/${t}" "${DIR}/ctests/"
+    fi
 done
 
 INITRAMFS=initramfs
@@ -34,7 +40,7 @@ LOGFILE=/tmp/kselftests$$
 qemu-system-x86_64 \
     -nographic \
     -m 4G \
-    -append "console=ttyS0 lsm=landlock" \
+    -append "console=ttyS0 lsm=landlock no_hash_pointers" \
     -kernel "${KBUILD_OUTPUT}/arch/x86/boot/bzImage" \
     -initrd "${INITRAMFS}" \
     | tee "${LOGFILE}.raw"
